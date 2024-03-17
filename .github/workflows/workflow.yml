@@ -13,9 +13,22 @@ jobs:
         run: docker build . --file Dockerfile --tag vetplus-api:${{github.run_id}}
 
       - name: Run Snyk to check Docker image for vulnerabilities
+        id: docker-image-scan
+        continue-on-error: true
         uses: snyk/actions/docker@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: vetplus-api:${{github.run_id}}
           args: --file=Dockerfile
+
+      - name: Upload result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk.sarif
+
+      - name: Check docker image scan status
+        if: ${{ steps.docker-image-scan.outcome == 'failure' }}
+        run: exit 1
+
+      # Publish the Docker image...
