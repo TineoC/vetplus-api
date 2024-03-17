@@ -30,9 +30,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: vetplus-api:${{github.run_id}}
-          args: |
-            --severity-threshold=high
-            --sarif-file-output=snyk.sarif
+          args: --file=Dockerfile
 
       - name: Upload result to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v2
