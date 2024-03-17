@@ -1,4 +1,4 @@
-FROM node:20.5-alpine3.18
+FROM node:iron-alpine3.18
 
 WORKDIR /usr/src/app
 
