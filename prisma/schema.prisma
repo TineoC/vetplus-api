@@ -1,0 +1,384 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+enum Role {
+  ADMIN
+  CLINIC_OWNER
+  VETERINARIAN
+  PET_OWNER
+}
+
+// ADMIN is capable of everything
+
+// CLINIC_OWNER inherits from PET_OWNER
+// CLINIC_OWNER is capable of administrate clinic and is also a pet owner
+
+// VETERINARIAN inherits from PET_OWNER
+// VETERINARIAN is capable of take appointments and is also a pet owner
+
+// PET_OWNER is capable of using the mobile app and make appointments
+// PET_OWNER is default role
+//Comment Schema
+
+enum Sex {
+  M
+  F
+}
+
+enum EmployeeInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELED
+}
+
+enum AppointmentStatus {
+  ACCEPTED
+  DENIED
+}
+
+enum NotificationCategory {
+  APPOINTMENT
+  HISTORY_ACCESS
+  INVITE_TO_CLINIC
+  INVITE_TO_CLINIC_RESPONSE
+  AUTHENTICATION
+}
+
+enum AppointmentState {
+  PENDING
+  IN_PROGRESS
+  FINISHED
+  DELAYED
+  CANCELLED
+}
+
+enum AppointmentType {
+  SURGERY
+  DENTAL
+  ROUTINE
+}
+
+enum AuthProvider {
+  FACEBOOK
+  GOOGLE
+  EMAIL
+}
+
+model User {
+  id       String       @id @default(uuid())
+  email    String       @unique
+  provider AuthProvider @default(EMAIL)
+  names            String
+  surnames         String?
+  document         String?
+  address          String?
+  telephone_number String?
+  image            String?
+  role Role @default(PET_OWNER)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  Credentials               Credentials[]
+  Pet                       Pet[]
+  Notification              Notification[]
+  Clinic                    Clinic?
+  VeterinarianSummaryScore  Veterinarian_Summary_Score?
+  VeterinariaSpecialties    Veterinarian_Specialties?
+  AppointmentOwner          Appointment[]  @relation("owner")
+  AppointmentVeterinarian   Appointment[]  @relation("veterinarian")
+  ClinicUsers               Clinic_User[]
+  ClinicEmployees           Clinic_Employee[]
+  Veterinarian              Veterinarian_PetOwner[] @relation("veterinarian")
+  PetOwner                  Veterinarian_PetOwner[] @relation("pet_owner")
+  Comment                   Comment[] 
+  User_Fmc                  User_Fmc?
+}
+
+model User_Fmc {
+  id_user       String     @id
+  token_fmc     String
+  
+  User        User  @relation(fields: [id_user], references: [id])
+
+  @@index([id_user])
+}
+
+model Credentials {
+  id_user  String @id
+  password String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+   User User @relation(fields: [id_user], references: [id])
+
+  @@index([id_user])
+}
+
+model Pet {
+  id String @id @default(uuid())
+
+  id_owner  String
+  id_specie Int
+  id_breed  Int
+
+  name         String
+  image        String?
+  gender       Sex
+  castrated    Boolean
+  dob          DateTime? @db.Date
+  observations String?   @db.Text
+
+  // TODO: Relacionar las vacunas y/o sus desparasitantes
+  // TODO: Relacionar los tratamientos (lavado, corte de pelo, etc...)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  Owner  User @relation(fields: [id_owner], references: [id]) 
+  Specie Specie @relation(fields: [id_specie], references: [id])
+  Breed  Breed  @relation(fields: [id_breed], references: [id])
+  Appointment Appointment[]
+
+  @@index([id_owner])
+  @@index([id_specie])
+  @@index([id_breed])
+}
+
+model Specie {
+  id Int @id @default(autoincrement())
+
+  name String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  Pet   Pet[]
+  Breed Breed[]
+}
+
+model Breed {
+  id        Int @id @default(autoincrement())
+  id_specie Int
+  name String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  Specie Specie @relation(fields: [id_specie], references: [id])
+  Pet Pet[]
+
+  @@index([id_specie])
+}
+
+model Notification {
+  id String @id @default(uuid())
+  id_user String
+  id_entity String
+  title    String
+  subtitle String
+  category NotificationCategory
+  read     Boolean @default(false)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  User User @relation(fields: [id_user], references: [id])
+
+  @@index([id_user])
+}
+
+model Appointment {
+  id String @id @default(uuid())
+
+  id_owner        String
+  id_veterinarian String?
+  id_pet          String
+  services        String
+  id_clinic       String
+
+  start_at     DateTime
+  end_at       DateTime?
+  observations String?           @db.Text
+  state        AppointmentState @default(PENDING)
+  appointment_status AppointmentStatus?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  Owner        User  @relation("owner", fields: [id_owner], references: [id])
+  Veterinarian User?  @relation("veterinarian", fields: [id_veterinarian], references: [id])
+  Pet          Pet     @relation(fields: [id_pet], references: [id])
+  Clinic       Clinic  @relation(fields: [id_clinic], references: [id])
+  Veterinarian_PetOwner Veterinarian_PetOwner? 
+
+  @@index([id_owner])
+  @@index([id_veterinarian])
+  @@index([id_pet])
+  @@index([id_clinic])
+  @@index([id])
+}
+
+model Clinic {
+  id String @id @default(uuid())
+
+  id_owner String @unique
+
+  owner User @relation(fields: [id_owner], references: [id])
+
+  name             String
+  telephone_number String
+  google_maps_url  String? @db.LongText
+  address          String
+  image            String?
+  services         String?
+  email            String?
+  schedule         Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  Appointment           Appointment[]
+  ClinicUsers           Clinic_User[]
+  ClinicEmployees       Clinic_Employee[]
+  Comment               Comment[] 
+  ClinicSummaryScore    Clinic_Summary_Score?
+  // TODO: Read google maps map url
+  // TODO: Add Clinic Schedule tables for Days and Hours
+
+  @@index([id_owner])
+}
+
+model Comment {
+  id String @id @default(uuid())
+  id_clinic   String
+  id_owner    String 
+  comment     String
+
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  status      Boolean  @default(true)
+
+  Owner  User @relation(fields: [id_owner], references: [id])
+  Clinic Clinic @relation(fields: [id_clinic], references: [id])
+
+  @@index([id_owner])
+  @@index([id_clinic])
+}
+
+model Clinic_User {
+  id_user String 
+  id_clinic String
+  favorite Boolean @default(false)
+  points Int?
+  clientAttendance Boolean @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  User User @relation(fields: [id_user], references: [id])
+  Clinic Clinic @relation(fields: [id_clinic], references: [id])
+
+  @@id([id_user, id_clinic])
+  @@index([id_user])
+  @@index([id_clinic])
+}
+
+
+
+model Clinic_Employee {
+  id_clinic  String
+  id_employee String
+  employee_invitation_status EmployeeInvitationStatus @default(PENDING)
+
+  Clinic  Clinic  @relation(fields: [id_clinic], references: [id])
+  Employee User @relation(fields: [id_employee], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  @@id([id_clinic, id_employee])
+  @@index([id_clinic])
+  @@index([id_employee])
+
+}
+
+model Service {
+  id String @id @default(uuid())
+
+  name        String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+}
+
+model Clinic_Summary_Score {
+  id_clinic String @id
+  total_points Int @default(5)
+  total_users Int @default(1)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  Clinic  Clinic?  @relation(fields: [id_clinic], references: [id])
+  
+  @@index([id_clinic])
+}
+
+
+model Veterinarian_PetOwner {
+  id_appointment String @unique
+  id_veterinarian String 
+  id_petowner String
+  points Int?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status Boolean @default(true)
+
+  Veterinarian User @relation("veterinarian", fields: [id_veterinarian], references: [id])
+  Pet_owner User @relation("pet_owner", fields: [id_petowner], references: [id])
+  Appointment Appointment? @relation(fields: [id_appointment], references: [id])
+
+  @@index([id_veterinarian])
+  @@index([id_petowner])
+}
+
+
+model Veterinarian_Summary_Score {
+  id_veterinarian String @id
+  total_points Int @default(5)
+  total_users Int @default(1)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  status     Boolean  @default(true)
+
+  User  User?  @relation(fields: [id_veterinarian], references: [id])
+ 
+  @@index([id_veterinarian])
+}
+
+model Veterinarian_Specialties{
+  id_veterinarian String @unique
+  specialties     String?
+  User  User?  @relation(fields: [id_veterinarian], references: [id])
+}

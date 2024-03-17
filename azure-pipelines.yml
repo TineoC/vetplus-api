@@ -1,0 +1,45 @@
+trigger:
+  - main
+
+pool:
+  vmImage: ubuntu-22.04
+  name: Azure Pipelines
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '20.x'
+    displayName: 'Install Node.js'
+
+  - script: |
+      npm install
+      npm run lint
+      npm run build
+      npm run docs:g
+    displayName: 'npm install, lint and build'
+
+  - task: Docker@2
+    inputs:
+      containerRegistry: 'docker-hub-connection'
+      repository: 'chrissst/vetplus-api'
+      command: 'buildAndPush'
+      Dockerfile: '**/Dockerfile'
+      tags: 'alpha-$(Build.BuildNumber)'
+
+  - task: CopyFiles@2
+    inputs:
+      SourceFolder: '$(System.DefaultWorkingDirectory)/docs'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+  - task: Bash@3
+    inputs:
+      targetType: 'inline'
+      script: |
+        npm install -g netlify-cli
+        netlify login
+        netlify deploy --prod --dir '$(Build.ArtifactStagingDirectory)'
+    displayName: 'Deploy docs website to netlify'
+    timeoutInMinutes: 5
+    env:
+      NETLIFY_AUTH_TOKEN: $(NETLIFY_AUTH_TOKEN)
+      NETLIFY_SITE_ID: $(NETLIFY_SITE_ID)
