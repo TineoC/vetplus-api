@@ -12,10 +12,13 @@ RUN npm run build
 
 EXPOSE 3000
 
-RUN chown -R node /usr/src/app
+RUN chown -R root /usr/src/app
 
-USER node
+USER root
 
 ENV NODE_ENV=production
+
+ENV DATABASE_USER=vrecio
+ENV DATABASE_PASSWORD=cloudnativeengineers2024
 
 CMD ["npm", "run", "start:prod"]
