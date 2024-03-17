@@ -18,7 +18,6 @@ USER root
 
 ENV NODE_ENV=production
 
-ENV DATABASE_USER=vrecio
-ENV DATABASE_PASSWORD=cloudnativeengineers2024
+ENV SNYK_TOKEN=dd14f5f1-a363-4efa-826e-89d1abbea686
 
 CMD ["npm", "run", "start:prod"]
