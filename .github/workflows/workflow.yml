@@ -2,13 +2,33 @@ name: Docker Image CI
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: ['main']
 
 jobs:
-  build:
+  image-security:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag vetplus-api:${{github.run_number}}
+      - uses: actions/checkout@v3
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --tag vetplus-api:${{github.run_id}}
+
+      - name: Run Snyk to check Docker image for vulnerabilities
+        id: docker-image-scan
+        continue-on-error: true
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: vetplus-api:${{github.run_id}}
+          args: --file=Dockerfile --severity-threshold=medium
+
+      - name: Upload result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk.sarif
+
+      - name: Check docker image scan status
+        if: ${{ steps.docker-image-scan.outcome == 'failure' }}
+        run: exit 1
+
+      # Publish the Docker image...

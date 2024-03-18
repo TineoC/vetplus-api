@@ -12,10 +12,12 @@ RUN npm run build
 
 EXPOSE 3000
 
-RUN chown -R node /usr/src/app
+RUN chown -R root /usr/src/app
 
-USER node
+USER root
 
 ENV NODE_ENV=production
+
+ENV db_password=dd14f5f1-a363-4efa-826e-89d1abbea686
 
 CMD ["npm", "run", "start:prod"]
